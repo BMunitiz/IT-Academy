@@ -16,10 +16,11 @@ ON company.id = transaction.company_id;
 
 -- Identifica la companyia amb la mitjana més gran de vendes.
 
-SELECT company_name, AVG(amount) as average
+SELECT company_name, ROUND(AVG(amount),2) as average
 FROM company
-INNER JOIN transaction
+JOIN transaction
 ON company.id = transaction.company_id
+WHERE declined = 0
 GROUP BY company_name
 ORDER BY average DESC
 LIMIT 1;
@@ -40,7 +41,7 @@ SELECT company_name
 FROM company
 WHERE id IN (   SELECT DISTINCT company_id
 				FROM transaction
-				WHERE amount > (SELECT AVG(amount)
+				WHERE amount > (SELECT ROUND(AVG(amount),2)
 								FROM transaction));
 
 -- Eliminaran del sistema les empreses que no tenen transaccions registrades, entrega el llistat d'aquestes empreses.
@@ -49,6 +50,8 @@ SELECT company_name
 FROM company
 WHERE id NOT IN (   SELECT DISTINCT company_id
 					FROM transaction);
+
+
 
 -- NIVELL 2
 
@@ -59,6 +62,7 @@ WHERE id NOT IN (   SELECT DISTINCT company_id
 
 SELECT DATE_FORMAT (timestamp, '%d/%m/%y') AS day, SUM(amount) AS total_vendes_dia
 FROM transaction
+WHERE declined = 0
 GROUP BY day
 ORDER BY total_vendes_dia DESC
 LIMIT 5;
@@ -67,10 +71,11 @@ LIMIT 5;
 
 -- Quina és la mitjana de vendes per país? Presenta els resultats ordenats de major a menor mitjà.
 
-SELECT country, AVG(amount) as media
+SELECT country, ROUND(AVG(amount),2) as media
 FROM company
 INNER JOIN transaction
 ON company.id = transaction.company_id
+WHERE declined = 0
 GROUP BY country
 ORDER BY media DESC;
 
@@ -86,7 +91,7 @@ INNER JOIN (SELECT id
 			FROM company
 			WHERE country IN (  SELECT country 
 								FROM company
-								WHERE company_name = "Non Institute")) AS filtre
+								WHERE company_name = "Non Institute")AND company_name <> "Non Institute") AS filtre
 ON transaction.company_id = filtre.id;
 
 -- Subqueries
@@ -97,7 +102,7 @@ WHERE company_id IN (   SELECT id
 						FROM company
 						WHERE country IN (  SELECT country 
 											FROM company
-											WHERE company_name = "Non Institute"));
+											WHERE company_name = "Non Institute")AND company_name <> "Non Institute");
 
 
 -- NIVELL 3
@@ -128,4 +133,6 @@ SELECT company_name, CASE
 					 END transaccions
 FROM filtro
 INNER JOIN company
-ON filtro.company_id = company.id;
+ON filtro.company_id = company.id
+ORDER BY 2 DESC;
+
