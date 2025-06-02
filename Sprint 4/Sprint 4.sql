@@ -17,6 +17,29 @@ country VARCHAR (50),
 website VARCHAR (255)
 );
 
+CREATE TABLE products(
+id VARCHAR (30) PRIMARY KEY,
+product_name VARCHAR (255),
+price VARCHAR (30),
+colour VARCHAR (30),
+weight VARCHAR (50),
+warehouse_id VARCHAR (50)
+);
+
+CREATE TABLE data_user(
+id VARCHAR (30) PRIMARY KEY,
+name VARCHAR (30),
+surname VARCHAR (30),
+phone VARCHAR (30),
+email VARCHAR (50),
+birth_date VARCHAR (50),
+country VARCHAR (50),
+city VARCHAR (50),
+postal_code VARCHAR (50),
+address VARCHAR (255)
+);
+
+
 CREATE TABLE credit_cards(
 id VARCHAR (30) PRIMARY KEY,
 user_id VARCHAR (30) ,
@@ -30,14 +53,7 @@ expiring_date VARCHAR (100),
 CONSTRAINT user_id FOREIGN KEY(user_id) REFERENCES data_user(id)
 );
 
-CREATE TABLE products(
-id VARCHAR (30) PRIMARY KEY,
-product_name VARCHAR (255),
-price VARCHAR (30),
-colour VARCHAR (30),
-weight VARCHAR (50),
-warehouse_id VARCHAR (50)
-);
+
 
 CREATE TABLE transactions(
 id VARCHAR (255) PRIMARY KEY,
@@ -55,18 +71,6 @@ CONSTRAINT business_id FOREIGN KEY(business_id) REFERENCES companies(company_id)
 CONSTRAINT t_user_id FOREIGN KEY(user_id) REFERENCES data_user(id)
 );
 
-CREATE TABLE data_user(
-id VARCHAR (30) PRIMARY KEY,
-name VARCHAR (30),
-surname VARCHAR (30),
-phone VARCHAR (30),
-email VARCHAR (50),
-birth_date VARCHAR (50),
-country VARCHAR (50),
-city VARCHAR (50),
-postal_code VARCHAR (50),
-address VARCHAR (255)
-);
 
 
 -- Ara inserirem les dades a les taules
@@ -81,15 +85,6 @@ IGNORE 1 LINES;
 SELECT *
 FROM companies;
 
-LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/credit_cards.csv'
-INTO TABLE credit_cards
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
-IGNORE 1 LINES;
-
-SELECT *
-FROM credit_cards;
 
 LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/products.csv'
 INTO TABLE products
@@ -101,15 +96,6 @@ IGNORE 1 LINES;
 SELECT *
 FROM products;
 
-LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/transactions.csv'
-INTO TABLE transactions
-FIELDS TERMINATED BY ';'
-ENCLOSED BY '"'
-LINES TERMINATED BY '\r\n'
-IGNORE 1 LINES;
-
-SELECT *
-FROM transactions;
 
 LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/users_ca.csv'
 INTO TABLE data_user
@@ -137,6 +123,30 @@ IGNORE 1 LINES;
 SELECT *
 FROM data_user;
 
+
+LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/credit_cards.csv'
+INTO TABLE credit_cards
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES;
+
+SELECT *
+FROM credit_cards;
+
+
+LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/transactions.csv'
+INTO TABLE transactions
+FIELDS TERMINATED BY ';'
+ENCLOSED BY '"'
+LINES TERMINATED BY '\r\n'
+IGNORE 1 LINES;
+
+SELECT *
+FROM transactions;
+
+
+
 -- Un cop tenim les taules amb les seves dades podem refer les relacions entre les taules i eliminar aquells camps que no necessitem
 -- Primer eliminarem el camp user_id de la taula TRANSACTIONS ja que es pot accedir a aquesta taula a traves de la taula CREDIT_CARDS,
 -- així tindrem un esquema de floc de neu.
@@ -147,12 +157,14 @@ DROP CONSTRAINT t_user_id;
 ALTER TABLE transactions
 DROP COLUMN user_id;
 
+
 -- Ara farem la relació entre PRODUCTS i TRANSACTIONS ja que es dona una relació N:M i hem de crear una taula intermitja per relacionar-les
 
 CREATE TABLE trans_prods(
 transactions_id VARCHAR (255),
 product_id INT
 );
+
 -- per poder obtenir els ID dels productes de cada transacció utilitzarem una funció RECURSIVE per extreure de cada filera els ID que conté
 -- i els inserim a la taula intermitja
 
@@ -174,7 +186,7 @@ ON n <= 1 + (LENGTH(transactions.product_ids)-LENGTH(REPLACE(transactions.produc
 SELECT trans_id, prod_id
 FROM trans_prod;
 
--- comprobem que les dades introduïdes
+-- comprobem que les dades introduïdes son correctes
 
 SELECT * FROM trans_prods;
 
@@ -198,7 +210,6 @@ LEFT JOIN transactions
 ON credit_cards.id = card_id
 GROUP BY name, surname
 HAVING quant_trans > 30;
-
 
 
 -- EXERCICI 2
@@ -225,7 +236,7 @@ GROUP BY company_name, iban;
 CREATE TABLE targetes_decl AS 
 SELECT DISTINCT(transactions.card_id), times_decl AS decl_mes_de_3, STR_TO_DATE(expiring_date, "%m/%d/%y") AS expired,
 CASE 
-			WHEN times_decl >= 3 OR STR_TO_DATE(expiring_date, "%m/%d/%y") < CURRENT_DATE  THEN "Targeta inactiva"
+			WHEN times_decl >= 3  THEN "Targeta inactiva"
 			ELSE "Targeta activa"
 END estat
 FROM transactions
@@ -247,11 +258,12 @@ LEFT JOIN (SELECT card_id, COUNT(card_id) AS times_decl
 ON transactions.card_id = last_decl.card_id
 ORDER BY card_id;
 
+
 -- Quantes targetes estan actives?
 
 SELECT COUNT(*) as targetes_actives
 FROM targetes_decl
-WHERE estat = "Targeta activa";
+WHERE estat = "Targeta activa" AND expired > CURRENT_DATE;
 
 
 -- NIVELL 3
