@@ -3,8 +3,8 @@
 -- Descàrrega els arxius CSV, estudia'ls i dissenya una base de dades amb un esquema d'estrella que contingui,
 -- almenys 4 taules de les quals puguis realitzar les següents consultes:
 
-CREATE SCHEMA modeling;
-USE modeling;
+CREATE SCHEMA modeling_2;
+USE modeling_2;
 
 -- Primer crearem les taules amb les seves PRIMARY KEYS i FOREIGN KEYS
 
@@ -17,14 +17,6 @@ country VARCHAR (50),
 website VARCHAR (255)
 );
 
-CREATE TABLE products(
-id VARCHAR (30) PRIMARY KEY,
-product_name VARCHAR (255),
-price VARCHAR (30),
-colour VARCHAR (30),
-weight VARCHAR (50),
-warehouse_id VARCHAR (50)
-);
 
 CREATE TABLE data_user(
 id VARCHAR (30) PRIMARY KEY,
@@ -46,7 +38,7 @@ user_id VARCHAR (30) ,
 iban VARCHAR (200),
 pan VARCHAR (200),
 pin VARCHAR (200),
-cvv INT,
+cvv VARCHAR (30),
 track1 VARCHAR (255),
 track2 VARCHAR (255),
 expiring_date VARCHAR (100),
@@ -85,16 +77,6 @@ IGNORE 1 LINES;
 SELECT *
 FROM companies;
 
-
-LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/products.csv'
-INTO TABLE products
-FIELDS TERMINATED BY ','
-ENCLOSED BY '"'
-LINES TERMINATED BY '\n'
-IGNORE 1 LINES;
-
-SELECT *
-FROM products;
 
 
 LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/users_ca.csv'
@@ -147,69 +129,17 @@ FROM transactions;
 
 
 
--- Un cop tenim les taules amb les seves dades podem refer les relacions entre les taules i eliminar aquells camps que no necessitem
--- Primer eliminarem el camp user_id de la taula TRANSACTIONS ja que es pot accedir a aquesta taula a traves de la taula CREDIT_CARDS,
--- així tindrem un esquema de floc de neu.
-
-ALTER TABLE transactions
-DROP CONSTRAINT t_user_id;
-
-ALTER TABLE transactions
-DROP COLUMN user_id;
-
-
--- Ara farem la relació entre PRODUCTS i TRANSACTIONS ja que es dona una relació N:M i hem de crear una taula intermitja per relacionar-les
-
-CREATE TABLE trans_prods(
-transactions_id VARCHAR (255),
-product_id INT
-);
-
--- per poder obtenir els ID dels productes de cada transacció utilitzarem una funció RECURSIVE per extreure de cada filera els ID que conté
--- i els inserim a la taula intermitja
-
-INSERT INTO trans_prods 
-WITH RECURSIVE trans_prod AS (
-SELECT transactions.id AS trans_id,
-CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(transactions.product_ids, ',', n),',', -1) AS UNSIGNED) AS prod_id,
-1 AS n
-FROM transactions
-JOIN (
-SELECT 1 AS n
-UNION ALL SELECT 2
-UNION ALL SELECT 3
-UNION ALL SELECT 4
-UNION ALL SELECT 5
-) AS numbers
-ON n <= 1 + (LENGTH(transactions.product_ids)-LENGTH(REPLACE(transactions.product_ids, ',','')))
-)
-SELECT trans_id, prod_id
-FROM trans_prod;
-
--- comprobem que les dades introduïdes son correctes
-
-SELECT * FROM trans_prods;
-
-
--- Un cop fet això creem les claus necessàries per connectar les taules PRODUCTS i TRANSACTIONS
-
-ALTER TABLE trans_prods
-ADD PRIMARY KEY (transactions_id, product_id),
-ADD FOREIGN KEY (transactions_id) REFERENCES transactions(id),
-ADD FOREIGN KEY (product_id) REFERENCES products(id);
-
 
 -- EXERCICI 1 
 -- Realitza una subconsulta que mostri tots els usuaris amb més de 30 transaccions utilitzant almenys 2 taules.
 
-SELECT  name, surname, COUNT(transactions.id)AS quant_trans
+
+SELECT name, surname
 FROM data_user
-INNER JOIN credit_cards
-ON data_user.id = user_id
-LEFT JOIN transactions
-ON credit_cards.id = card_id
-GROUP BY name, surname
-HAVING quant_trans > 30;
+WHERE data_user.id IN (SELECT user_id
+						FROM transactions
+						GROUP BY user_id
+						HAVING Count(id) > 30);
 
 
 -- EXERCICI 2
@@ -226,6 +156,19 @@ GROUP BY company_name, iban;
 
 
 -- NIVELL 2
+
+
+-- Un cop tenim les taules amb les seves dades podem refer les relacions entre les taules i eliminar aquells camps que no necessitem
+-- Primer eliminarem el camp user_id de la taula TRANSACTIONS ja que es pot accedir a aquesta taula a traves de la taula CREDIT_CARDS,
+-- així tindrem un esquema de floc de neu.
+
+ALTER TABLE transactions
+DROP CONSTRAINT t_user_id;
+
+ALTER TABLE transactions
+DROP COLUMN user_id;
+
+
 
 -- EXERCICI 1
 
@@ -272,8 +215,67 @@ WHERE estat = "Targeta activa" AND expired > CURRENT_DATE;
 
 -- Crea una taula amb la qual puguem unir les dades del nou arxiu products.csv amb la base de dades creada,
 -- tenint en compte que des de transaction tens product_ids. 
--- Genera la següent consulta:
 
+CREATE TABLE products(
+id VARCHAR (30) PRIMARY KEY,
+product_name VARCHAR (255),
+price VARCHAR (30),
+colour VARCHAR (30),
+weight VARCHAR (50),
+warehouse_id VARCHAR (50)
+);
+
+LOAD DATA LOCAL INFILE '/Users/borja/Desktop/IT Academy/Especialització/SQL/Sprint 4/products.csv'
+INTO TABLE products
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 LINES;
+
+SELECT *
+FROM products;
+
+-- Ara farem la relació entre PRODUCTS i TRANSACTIONS ja que es dona una relació N:M i hem de crear una taula intermitja per relacionar-les
+
+CREATE TABLE trans_prods(
+transactions_id VARCHAR (255),
+product_id INT
+);
+
+-- per poder obtenir els ID dels productes de cada transacció utilitzarem una funció RECURSIVE per extreure de cada filera els ID que conté
+-- i els inserim a la taula intermitja
+
+INSERT INTO trans_prods 
+WITH RECURSIVE trans_prod AS (
+SELECT transactions.id AS trans_id,
+CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(transactions.product_ids, ',', n),',', -1) AS UNSIGNED) AS prod_id,
+1 AS n
+FROM transactions
+JOIN (
+SELECT 1 AS n
+UNION ALL SELECT 2
+UNION ALL SELECT 3
+UNION ALL SELECT 4
+UNION ALL SELECT 5
+) AS numbers
+ON n <= 1 + (LENGTH(transactions.product_ids)-LENGTH(REPLACE(transactions.product_ids, ',','')))
+)
+SELECT trans_id, prod_id
+FROM trans_prod;
+
+-- comprobem que les dades introduïdes son correctes
+
+SELECT * FROM trans_prods;
+
+
+-- Un cop fet això creem les claus necessàries per connectar les taules PRODUCTS i TRANSACTIONS
+
+ALTER TABLE trans_prods
+ADD PRIMARY KEY (transactions_id, product_id),
+ADD FOREIGN KEY (transactions_id) REFERENCES transactions(id),
+ADD FOREIGN KEY (product_id) REFERENCES products(id);
+
+-- Genera la següent consulta:
 
 -- Necessitem conèixer el nombre de vegades que s'ha venut cada producte.
 
